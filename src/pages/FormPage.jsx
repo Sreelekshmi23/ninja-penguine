@@ -13,6 +13,7 @@ import {
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
 import { uploadToCloudinary } from "../utils/cloudinary";
+import * as XLSX from "xlsx";
 
 // --- Constants ---
 const PRIMARY_COLOR = "#0F40C5"; // Coral
@@ -95,6 +96,45 @@ export default function FormPage() {
   const removeImage = (index) => {
     setPreviewImages(prev => prev.filter((_, i) => i !== index));
     setFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleExcelUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+        // Extract serial numbers from the first column, filtering out empty values
+        const newSerialNumbers = jsonData
+          .map(row => row[0])
+          .filter(cell => cell !== undefined && cell !== null && String(cell).trim() !== "");
+
+        if (newSerialNumbers.length > 0) {
+          // If the current list only has one empty entry, replace it. Otherwise append.
+          setSerialNumbers(prev => {
+            if (prev.length === 1 && prev[0] === "") {
+              return newSerialNumbers.map(String);
+            }
+            return [...prev, ...newSerialNumbers.map(String)];
+          });
+        } else {
+          alert("No valid serial numbers found in the first column of the Excel file.");
+        }
+      } catch (error) {
+        console.error("Error parsing Excel file:", error);
+        alert("Error parsing Excel file. Please ensure it is a valid Excel file.");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    // Reset file input value to allow uploading the same file again if needed
+    e.target.value = "";
   };
 
   const handleSubmit = async (e) => {
@@ -311,15 +351,28 @@ export default function FormPage() {
                       )}
                     </div>
                   ))}
-                  <button
-                    type="button"
-                    onClick={addSerialNumber}
-                    disabled={isSubmitting}
-                    className="mt-2 text-sm hover:underline font-medium flex items-center gap-1 transition-colors"
-                    style={{ color: PRIMARY_COLOR }}
-                  >
-                    <Plus size={16} /> Add another serial number
-                  </button>
+                  <div className="flex gap-4 mt-2">
+                    <button
+                      type="button"
+                      onClick={addSerialNumber}
+                      disabled={isSubmitting}
+                      className="text-sm hover:underline font-medium flex items-center gap-1 transition-colors"
+                      style={{ color: PRIMARY_COLOR }}
+                    >
+                      <Plus size={16} /> Add another serial number
+                    </button>
+
+                    <label className="text-sm hover:underline font-medium flex items-center gap-1 transition-colors cursor-pointer" style={{ color: PRIMARY_COLOR }}>
+                      <Upload size={16} /> Upload Excel
+                      <input
+                        type="file"
+                        accept=".xlsx, .xls"
+                        onChange={handleExcelUpload}
+                        className="hidden"
+                        disabled={isSubmitting}
+                      />
+                    </label>
+                  </div>
                 </div>
               </div>
 
