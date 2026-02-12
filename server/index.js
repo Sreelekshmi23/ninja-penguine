@@ -3,7 +3,7 @@ const fs = require("fs");
 const PizZip = require("pizzip");
 const Docxtemplater = require("docxtemplater");
 const cors = require("cors");
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 const DocxMerger = require("docx-merger");
 const { log } = require("console");
 const ImageModule = require("docxtemplater-image-module-free");
@@ -15,16 +15,8 @@ app.use(express.json({ limit: "10mb" }));
 
 // ================= EMAIL CONFIG =================
 
-const EMAIL_USER = "overflowedpixels@gmail.com";
-const EMAIL_PASS = "osavmoezpkvooyhp";
-
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: EMAIL_USER,
-    pass: EMAIL_PASS,
-  },
-});
+const resend = new Resend('re_HsE79hGf_9y9gnpxYsGVwBnUWiC5scJzB');
+const EMAIL_USER = "TrueSun <overflowedpixels@gmail.com>";
 
 // ================= CONFIG =================
 
@@ -189,9 +181,9 @@ app.post("/test", async (req, res) => {
 
     merger.save("nodebuffer", async (data) => {
       try {
-        await transporter.sendMail({
+        await resend.emails.send({
           from: EMAIL_USER,
-          to: "penguinninja8@gmail.com",
+          to: ["penguinninja8@gmail.com"],
           subject: "Document",
           text: "Here is your document",
           attachments: [
@@ -203,12 +195,14 @@ app.post("/test", async (req, res) => {
         });
 
         console.log("Email sent successfully");
-        await transporter.sendMail({
-          from: EMAIL_USER,
-          to: req.body.EPC_Email,
-          subject: "Request has been Approved",
-          text: `Hello ${req.body.EPC_Name},\n\nYour request has been approved.\n\nRegards,\nTeam TrueSun`,
-        });
+        await resend.emails.send({
+          from: 'Acme <onboarding@resend.dev>',
+          to: ['jithugirish1@gmail.com'],
+          subject: 'hello world',
+          html: '<p>it works!</p>',
+        }).then(() => {
+          console.log(`email sent successfully${req.body.EPC_Email}`);
+        })
         return res.status(200).json({
           message: "Document generated and sent successfully",
           success: true,
@@ -239,7 +233,7 @@ app.post("/send-rejection-email", async (req, res) => {
   const { email, name, reason } = req.body;
 
   try {
-    await transporter.sendMail({
+    await resend.emails.send({
       from: EMAIL_USER,
       to: email,
       subject: "Request Rejected - Service Integrator Portal",
